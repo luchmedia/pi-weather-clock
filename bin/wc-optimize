@@ -1,0 +1,89 @@
+#!/bin/bash
+#
+# wc-optimize — disable services not needed for the weather clock kiosk
+#
+# These services run by default on Raspberry Pi OS Lite but aren't needed
+# for a single-purpose kiosk. Disabling them saves RAM and reduces SD wear.
+#
+# Each service is checked: skipped if already disabled. Idempotent.
+#
+# Run with --revert to re-enable everything.
+
+set -euo pipefail
+
+if [ "$EUID" -ne 0 ]; then
+    echo "Run as root: sudo $0"
+    exit 1
+fi
+
+ACTION="disable"
+[ "${1:-}" = "--revert" ] && ACTION="enable"
+
+# Services to disable
+SERVICES=(
+    bluetooth                  # no BT used (dtoverlay=disable-bt also)
+    triggerhappy               # input event multiplexer, not needed for touch
+    ModemManager               # no modems
+    udisks2                    # auto-mount, not needed
+    accounts-daemon            # user account management daemon
+    avahi-daemon               # mDNS, not needed if you SSH by IP
+    avahi-daemon.socket
+)
+
+# Timers to disable (run periodically, cause SD writes)
+TIMERS=(
+    apt-daily.timer
+    apt-daily-upgrade.timer
+    man-db.timer
+    fstrim.timer
+    e2scrub_all.timer
+    dpkg-db-backup.timer
+)
+
+manage_unit() {
+    local action="$1"
+    local unit="$2"
+    if ! systemctl list-unit-files "$unit" >/dev/null 2>&1; then
+        echo "  - $unit: not present, skipping"
+        return
+    fi
+    case "$action" in
+        disable)
+            if systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+                systemctl disable --now "$unit" 2>&1 | grep -v "^$" || true
+                echo "  - $unit: disabled"
+            else
+                echo "  - $unit: already disabled"
+            fi
+            ;;
+        enable)
+            systemctl enable --now "$unit" 2>&1 | grep -v "^$" || true
+            echo "  - $unit: enabled"
+            ;;
+    esac
+}
+
+echo "=== ${ACTION^^} unnecessary services ==="
+for s in "${SERVICES[@]}"; do
+    manage_unit "$ACTION" "$s.service"
+done
+
+echo
+echo "=== ${ACTION^^} unnecessary timers ==="
+for t in "${TIMERS[@]}"; do
+    manage_unit "$ACTION" "$t"
+done
+
+echo
+if [ "$ACTION" = "disable" ]; then
+    cat <<EOF
+Done. Expected gains:
+  - RAM: 15-30 MB freed
+  - CPU: less background activity
+  - SD writes: reduced (timers no longer wake up)
+
+To revert: sudo wc-optimize --revert
+EOF
+else
+    echo "All services re-enabled."
+fi

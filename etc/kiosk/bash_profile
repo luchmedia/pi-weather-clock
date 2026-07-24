@@ -1,0 +1,288 @@
+# ~/.bash_profile per l'utente kiosk
+# v5: avvia weather_clock via KMSDRM con bootscreen leggero + readiness check
+# robusti contro CPU starvation da udev.
+#
+# Modifiche rispetto a v4:
+#   - Centering testo migliorato (usa dimensioni reali console via tput)
+#   - Wait più aggressivo per udev: aspetta che NON ci siano udev worker
+#     attivi (oltre udevadm settle che ha limiti noti su sistemi lenti)
+#   - Wait per CPU effettivamente libera (idle% da /proc/stat, non solo
+#     load average che è una media degli ultimi 1/5/15 minuti)
+
+if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = "1" ]; then
+
+    # Anti-duplicato: se c'e' gia' un weather_clock python in esecuzione, esci.
+    # Evita accumulo di processi paralleli quando bash_profile viene rilanciato
+    # da login retry o sessioni multiple sullo stesso tty.
+    if pgrep -u "$USER" -f "python3.*weather_clock\.py" >/dev/null 2>&1; then
+        printf '\033[H\033[2J\033[3J\033[?25l' > /dev/tty1 2>/dev/null
+        echo "Weather Clock already running, this shell exits." > /dev/tty1
+        exec sleep infinity
+    fi
+
+
+    # === Immediate clear: niente prompt o kernel log visibili ===
+    # Eseguito PRIMA di tutto, anche prima di setup variabili, per coprire
+    # il momento di transizione tra getty autologin e bash_profile.
+    printf '\033[H\033[2J\033[3J\033[?25l' > /dev/tty1 2>/dev/null
+
+    # Trap EXIT/INT/TERM: se il supervisor termina per qualunque ragione,
+    # lascia uno schermo nero pulito (no kernel log, no prompt visibile)
+    cleanup_screen() {
+        printf '\033[H\033[2J\033[3J\033[?25l' > /dev/tty1 2>/dev/null
+    }
+    trap cleanup_screen EXIT INT TERM HUP
+
+    # === Funzioni di utility ===
+
+    # Dimensioni console rilevate dinamicamente.
+    # Su HyperPixel 720x720 con font console "VGA 8x16" sono ~90 col × 45 righe,
+    # con "Terminus 16x32" ~45 col × 22 righe. Variano per font setup.
+    # Provo prima `stty size` (più affidabile su tty diretti), poi `tput`, infine
+    # fallback hardcoded ragionevole.
+    # IMPORTANTE: tput/stty leggono dal tty stdin, ma qui stdin è bash autologin
+    # → potrebbe NON riflettere /dev/tty1. Quindi forziamo lettura da /dev/tty1.
+    _term_size=$(stty -F /dev/tty1 size 2>/dev/null)
+    if [ -n "$_term_size" ]; then
+        CONSOLE_ROWS=${_term_size%% *}
+        CONSOLE_COLS=${_term_size##* }
+    else
+        CONSOLE_COLS=$(tput cols 2>/dev/null || echo 90)
+        CONSOLE_ROWS=$(tput lines 2>/dev/null || echo 45)
+    fi
+    # Riga centrale verticale
+    CENTER_ROW=$(( CONSOLE_ROWS / 2 ))
+
+    clear_screen() {
+        # \033[H = vai a (1,1), \033[2J = clear screen, \033[3J = clear scrollback
+        # \033[?25l = hide cursor
+        printf '\033[H\033[2J\033[3J\033[?25l' > /dev/tty1
+    }
+
+    show_bootscreen() {
+        clear_screen
+        local main="$1"
+        local sub="${2:-}"
+        local pad_main pad_sub
+
+        pad_main=$(( (CONSOLE_COLS - ${#main}) / 2 ))
+        [ "$pad_main" -lt 0 ] && pad_main=0
+        printf '\033[%d;1H\033[K%*s%s\n' \
+            "$CENTER_ROW" "$pad_main" "" "$main" > /dev/tty1
+
+        if [ -n "$sub" ]; then
+            pad_sub=$(( (CONSOLE_COLS - ${#sub}) / 2 ))
+            [ "$pad_sub" -lt 0 ] && pad_sub=0
+            printf '\033[%d;1H\033[K%*s%s\n' \
+                "$((CENTER_ROW + 2))" "$pad_sub" "" "$sub" > /dev/tty1
+        fi
+    }
+
+    # === udev activity detection ===
+    # Su Raspbian Bookworm i worker sono PROCESSI con comm "(udev-worker)"
+    # (con parentesi). Vediamo se possiamo contarli (il match con regex
+    # deve includere le parentesi che ps stampa letteralmente nel comm).
+    #
+    # FALLBACK: se il kernel emette eventi udev in continuazione (es. per
+    # problemi hardware SD/WiFi), aspettare "zero worker stabili" è
+    # impossibile. In quel caso ci accontentiamo di un trigger temporale
+    # (max wait di 30s) + CPU libera, e procediamo.
+
+    UDEVD_PID=$(pidof systemd-udevd 2>/dev/null | awk '{print $1}')
+
+    # Conta i worker (processi figli di systemd-udevd).
+    # Pattern reale: comm "(udev-worker)" con parentesi letterali.
+    # Su Raspbian Bookworm questo è il nome corretto rilevato da `ps -eo comm`.
+    count_udev_workers() {
+        local n
+        n=$(ps -eo comm= 2>/dev/null | grep -cFx '(udev-worker)' 2>/dev/null)
+        echo "${n:-0}"
+    }
+
+    # CPU usage del master systemd-udevd (delta su 1 secondo, percentuale).
+    # Su single-core Pi Zero W: 0% = idle, >10% = sta lavorando.
+    get_udevd_cpu_pct() {
+        if [ -z "$UDEVD_PID" ] || [ ! -r "/proc/$UDEVD_PID/stat" ]; then
+            echo 0
+            return
+        fi
+        # /proc/PID/stat campi 14,15 = utime, stime in clock ticks
+        # /proc/stat riga "cpu" campi 2-8 = totale clock ticks
+        local p1 p2 t1 t2 dp dt
+        p1=$(awk '{print $14+$15}' "/proc/$UDEVD_PID/stat" 2>/dev/null)
+        t1=$(awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8}' /proc/stat 2>/dev/null)
+        sleep 1
+        p2=$(awk '{print $14+$15}' "/proc/$UDEVD_PID/stat" 2>/dev/null)
+        t2=$(awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8}' /proc/stat 2>/dev/null)
+        if [ -z "$p1" ] || [ -z "$t1" ] || [ -z "$p2" ] || [ -z "$t2" ]; then
+            echo 0
+            return
+        fi
+        dp=$(( p2 - p1 ))
+        dt=$(( t2 - t1 ))
+        if [ "$dt" -le 0 ]; then
+            echo 0
+            return
+        fi
+        echo $(( dp * 100 / dt ))
+    }
+
+    # === 1. Bootscreen IMMEDIATO ===
+    show_bootscreen "Weather Clock" "Loading, please wait..."
+
+    # Diagnostic dump iniziale
+    {
+        echo "[$(date -Is)] === BOOT START ==="
+        echo "[$(date -Is)] User: $(id)"
+        echo "[$(date -Is)] systemd-udevd PID: $UDEVD_PID"
+        echo "[$(date -Is)] Initial udev workers: $(count_udev_workers)"
+        echo "[$(date -Is)] Console size: ${CONSOLE_COLS}x${CONSOLE_ROWS}"
+        echo "[$(date -Is)] MemAvailable: $(awk '/MemAvailable/{print $2}' /proc/meminfo) kB"
+    } >> "$HOME/weatherClock.log" 2>&1
+
+    # === 2. Wait system readiness ===
+
+    # 2a. Boot di systemd completo (multi-user.target raggiunto)
+    for _ in $(seq 1 60); do
+        if systemctl is-system-running 2>/dev/null | grep -qE "^(running|degraded)$"; then
+            break
+        fi
+        sleep 1
+    done
+
+    # 2b. udev settle (best effort)
+    show_bootscreen "Weather Clock" "Waiting for system devices..."
+    udevadm settle --timeout=30 2>/dev/null || true
+
+    # 2c. Wait per udev RAGIONEVOLMENTE idle.
+    # Criterio: zero worker attivi + CPU del master < 5%.
+    # MAX 60 secondi totali, dopo procediamo comunque (alcuni sistemi
+    # hanno eventi udev continui da hardware sotto-funzionante e
+    # aspettare "zero stabili" è impossibile).
+    # Stabile = 3 secondi consecutivi di idleness.
+    show_bootscreen "Weather Clock" "Waiting for udev to finish..."
+    echo "[$(date -Is)] === udev wait START (UDEVD_PID=$UDEVD_PID) ===" >> "$HOME/weatherClock.log"
+    stable_count=0
+    last_logged_w=-1
+    # Max 60 secondi: dopo procediamo comunque. Se udev non si è calmato,
+    # significa che c'è qualcosa di anomalo nel sistema (SD/WiFi flaky) e
+    # aspettare di più non serve.
+    for i in $(seq 1 60); do
+        workers=$(count_udev_workers)
+        # CPU check solo ogni 3s (costoso: sleep interno 1s)
+        if [ "$workers" -eq 0 ] && [ $((i % 3)) -eq 0 ]; then
+            cpu=$(get_udevd_cpu_pct)
+            if [ "$workers" != "$last_logged_w" ]; then
+                echo "[$(date -Is)] udev: workers=$workers cpu=$cpu%" >> "$HOME/weatherClock.log"
+                last_logged_w=$workers
+            fi
+            if [ "$cpu" -lt 5 ]; then
+                stable_count=$((stable_count + 3))
+                [ "$stable_count" -ge 5 ] && break
+            else
+                stable_count=0
+            fi
+        elif [ "$workers" -eq 0 ]; then
+            stable_count=$((stable_count + 1))
+            [ "$stable_count" -ge 5 ] && break
+            sleep 1
+        else
+            if [ "$workers" != "$last_logged_w" ]; then
+                echo "[$(date -Is)] udev: workers=$workers" >> "$HOME/weatherClock.log"
+                last_logged_w=$workers
+            fi
+            stable_count=0
+            sleep 1
+        fi
+    done
+    echo "[$(date -Is)] === udev wait END (workers=$workers stable=$stable_count) ===" >> "$HOME/weatherClock.log"
+
+    # 2d. DRM connector ready (display HyperPixel rilevato)
+    show_bootscreen "Weather Clock" "Initializing display..."
+    for _ in $(seq 1 30); do
+        if grep -ql connected /sys/class/drm/card*-DPI-*/status 2>/dev/null; then
+            break
+        fi
+        sleep 1
+    done
+
+    # 2e. Wait per CPU effettivamente libera (idle > 70% in 1s di campionamento).
+    # Più accurato di "load average" che è una media di 1/5/15 min.
+    show_bootscreen "Weather Clock" "Waiting for CPU to settle..."
+    for _ in $(seq 1 30); do
+        # Snapshot 1 da /proc/stat (prima riga: cpu user nice sys idle iowait irq softirq)
+        read _ u1 n1 s1 i1 io1 _ < /proc/stat
+        sleep 1
+        read _ u2 n2 s2 i2 io2 _ < /proc/stat
+        idle_delta=$(( (i2 - i1) + (io2 - io1) ))
+        total_delta=$(( (u2 - u1) + (n2 - n1) + (s2 - s1) + idle_delta ))
+        if [ "$total_delta" -gt 0 ]; then
+            idle_pct=$(( idle_delta * 100 / total_delta ))
+            [ "$idle_pct" -gt 70 ] && break
+        fi
+    done
+
+    # 2f. Wait per RAM available > soglia (almeno 100 MB liberi)
+    show_bootscreen "Weather Clock" "Waiting for available memory..."
+    for _ in $(seq 1 30); do
+        mem_avail_kb=$(awk '/MemAvailable/{print $2}' /proc/meminfo 2>/dev/null || echo 0)
+        [ "$mem_avail_kb" -gt 102400 ] && break  # 100 MB
+        sleep 2
+    done
+
+    # === 3. Environment SDL2 KMSDRM ===
+    export SDL_VIDEODRIVER=kmsdrm
+    export SDL_RENDER_DRIVER=opengles2
+    export SDL_MOUSE_TOUCH_EVENTS=1
+    export SDL_TOUCH_MOUSE_EVENTS=1
+
+    cd "$HOME/weatherClock" || exit 1
+
+    # === 4. Loop di restart automatico (watchdog) ===
+
+    consecutive_failures=0
+    max_consecutive_failures=5
+
+    while true; do
+        if [ "$consecutive_failures" -eq 0 ]; then
+            show_bootscreen "Weather Clock" "Starting application..."
+        else
+            show_bootscreen "Weather Clock" \
+                "Recovering from crash (attempt ${consecutive_failures}/${max_consecutive_failures})..."
+        fi
+        sleep 1
+        clear_screen
+
+        # Re-check udev idle prima di lanciare python. Quick.
+        for _ in $(seq 1 10); do
+            workers=$(count_udev_workers)
+            [ "$workers" -eq 0 ] && break
+            sleep 1
+        done
+
+        # === LANCIA L'APP ===
+        /usr/bin/python3 ./weather_clock.py
+        rc=$?
+
+        echo "[$(date -Is)] weather_clock.py exit code=$rc consecutive=$consecutive_failures" >> "$HOME/weatherClock.log"
+
+        if [ "$rc" -eq 0 ]; then
+            echo "[$(date -Is)] Clean exit, supervisor stops" >> "$HOME/weatherClock.log"
+            clear_screen
+            exit 0
+        fi
+
+        consecutive_failures=$((consecutive_failures + 1))
+
+        if [ "$consecutive_failures" -ge "$max_consecutive_failures" ]; then
+            show_bootscreen "Weather Clock - System Error" \
+                "Too many crashes. Waiting 5 minutes."
+            echo "[$(date -Is)] Too many consecutive crashes, waiting 300s" >> "$HOME/weatherClock.log"
+            sleep 300
+            consecutive_failures=0
+        else
+            show_bootscreen "Weather Clock" "Crashed, restarting in 5s..."
+            sleep 5
+        fi
+    done
+fi

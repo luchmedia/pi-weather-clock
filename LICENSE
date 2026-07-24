@@ -1,0 +1,51 @@
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 3, 29 June 2007
+
+ Copyright (C) 2026 luchmedia
+ pi-weather-clock - Analog clock for Raspberry Pi showing weather forecasts.
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+ ---
+
+ The full text of the GNU General Public License v3 is available at:
+   https://www.gnu.org/licenses/gpl-3.0.txt
+
+ When forking, distributing, or modifying this software, the full LICENSE
+ text from the above URL must be included alongside the code.
+
+ ---
+
+ ATTRIBUTION
+
+ This project was inspired by and derived from:
+   KeepThisTicket/weatherClock
+   https://github.com/KeepThisTicket/weatherClock
+
+ The original concept, dial layout, and 3D-printable enclosure design
+ are the work of K3vinWu (KeepThisTicket on GitHub). This project is a
+ substantial rewrite focused on Pi Zero W stability and SDL2 KMSDRM
+ rendering, but the visual concept and enclosure design are theirs.
+
+ The 3D enclosure STL files are NOT redistributed in this repository.
+ To print the case, please download them from the original project linked
+ above.
+
+ Other third-party components used (with their own licenses):
+   - pygame                  (LGPL)
+   - SDL2                    (zlib)
+   - Pillow (PIL)            (MIT-CMU)
+   - requests                (Apache 2.0)
+   - Meteocons (optional)    (https://github.com/basmilius/meteocons)
+   - Inter font (optional)   (SIL Open Font License 1.1)

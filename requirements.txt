@@ -1,0 +1,15 @@
+# pi-weather-clock — Python runtime dependencies
+#
+# These are informative: on Raspberry Pi OS, install them via apt (not pip).
+# The installer in this repo uses `apt install python3-pygame python3-requests
+# python3-pil` because pip would build pygame from source on Pi Zero W
+# (ARMv6) which can fail and takes ~30 minutes.
+#
+# Versions tested:
+pygame>=2.6.0
+requests>=2.31.0
+Pillow>=10.0.0
+
+# Built-in modules used (no installation needed):
+# - json, logging, math, time, datetime, pathlib, threading
+# - dataclasses, typing, gc, os, sys, ctypes

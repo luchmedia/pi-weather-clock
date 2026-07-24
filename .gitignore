@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment
+.env
+.venv
+env/
+venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit your real settings
+settings.json
+*.api_key
+.env.local
+
+# Logs
+*.log
+/var/log/
+
+# Cache
+.cache/
+weatherClock-stdout.log
+weatherClock-stderr.log
+
+# Backup files left by editors
+*.bak
+*.orig
+
+# Build / dev artifacts
+build/
+dist/
+*.egg-info/
+
+# Temporary scripts during development
+sync-to-pi.sh
+
+# Local STLs / 3D model exports (don't redistribute case files)
+*.stl
+*.3mf
+hardware/case/*.stl
+hardware/case/*.3mf
+
+# Downloaded themes / icon packs (user-specific)
+theme_meteocons/
+src/theme_meteocons/

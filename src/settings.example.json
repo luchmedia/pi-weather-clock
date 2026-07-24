@@ -1,0 +1,63 @@
+{
+  "_comment": "Edit this file with your settings. See docs/CONFIGURATION.md for all options.",
+
+  "api_key": "YOUR_API_KEY_HERE",
+  "latitude": 40.76316553535791,
+  "longitude": -73.9629380803863,
+  "language": "en",
+
+  "fps": 60,
+  "smooth_seconds": true,
+
+  "animate_icons": true,
+  "animation_fps": 8,
+  "animation_n_frames": 20,
+  "animation_loop_seconds": 2,
+
+  "icon_antialias": "high",
+  "moon_antialias": "ultra",
+  "hands_antialias": "max",
+  "render_scale_quality": "best",
+
+  "values_bg_alpha": 220,
+  "values_bg_adaptive": false,
+  "show_wind": true,
+  "show_temperature": true,
+  "values_temp_inset": 6,
+  "values_wind_inset": 6,
+
+  "show_moon": true,
+  "moon_lit_color": "#ebebe6",
+  "moon_dark_color": "#282834",
+  "moon_show_label": true,
+
+  "swipe_min_vertical_px": 80,
+  "swipe_max_horizontal_px": 50,
+  "detail_page_dots_y_offset": 200,
+  "detail_page_dots_spacing": 20,
+  "detail_page_dot_radius": 4,
+
+  "alerts_timeout_seconds": 60,
+  "alert_color_info": "#3f7fbf",
+  "alert_color_warn": "#e0872e",
+  "alert_color_danger": "#cc3333",
+
+  "show_sun_times": true,
+  "sun_times_sunrise_color": "#ffa500",
+  "sun_times_sunset_color": "#5d6cb0",
+
+  "transition_duration_ms": 250,
+  "fade_duration_ms": 400,
+  "slide_duration_ms": 450,
+  "transition_easing": "out_cubic",
+
+  "center_temp_color": "#aaaaaa",
+  "wind_hands_color": "#aaaaaa",
+  "wind_hands_arrow_color": "#aaaaaa",
+  "wind_gust_alert_threshold_ms": 21.0,
+
+  "log_level": "WARNING",
+  "update_minutes": 5,
+
+  "font_name": "fonts/Inter-Regular.ttf"
+}
