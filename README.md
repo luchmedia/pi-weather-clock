@@ -20,12 +20,12 @@ See the demo above. *(Add your own photos in `docs/screenshots/`.)*
 
 ## Credits & origin
 
-This project is heavily inspired by [**KeepThisTicket/weatherClock**](https://github.com/KeepThisTicket/weatherClock) by K3vinWu — the original concept, dial layout, and enclosure design are his. This is a substantial rewrite (5700+ lines vs ~400 of the original) focused on Pi Zero W stability and visual polish, but the core idea is his vision.
+This project is heavily inspired by [**KeepThisTicket/weatherClock**](https://github.com/KeepThisTicket/weatherClock) — the original concept, dial layout, and enclosure design are his. This is a substantial rewrite (5700+ lines vs ~400 of the original) focused on Pi Zero W stability and visual polish, but the core idea is his vision.
 
 **Original repository**: https://github.com/KeepThisTicket/weatherClock
 **Original enclosure CAD**: linked from the original repo
 
-If you want to print the case, get the STL files from K3vinWu's repository. We don't redistribute them here.
+If you want to print the case, get the STL files from KeepThisTicket's repository. We don't redistribute them here.
 
 ## Features compared to original
 
@@ -202,11 +202,11 @@ Want to contribute? Open an issue or PR at https://github.com/luchmedia/pi-weath
 
 This project (the codebase in `src/`, the installer, scripts, and documentation) is licensed under **GPL v3**. See [LICENSE](LICENSE).
 
-The original concept and enclosure design by K3vinWu (linked above) are not redistributed here — please respect his project's terms.
+The original concept and enclosure design by KeepThisTicket (linked above) are not redistributed here — please respect his project's terms.
 
 ## Acknowledgments
 
-- **[KeepThisTicket](https://github.com/KeepThisTicket/weatherClock)** — original weatherClock concept, dial layout, and 3D-printable enclosure design
+- **[KeepThisTicket](https://github.com/KeepThisTicket)** — original weatherClock concept, dial layout, and 3D-printable enclosure design
 - **[Basilius Milius (basmilius)](https://github.com/basmilius)** — Meteocons icon set (optional theme)
 - **[Pimoroni](https://shop.pimoroni.com/products/hyperpixel-4-square)** — HyperPixel 4.0 Square display
 - **[OpenWeatherMap](https://openweathermap.org)** — weather data API
