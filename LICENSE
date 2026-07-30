@@ -34,9 +34,9 @@
    https://github.com/KeepThisTicket/weatherClock
 
  The original concept, dial layout, and 3D-printable enclosure design
- are the work of K3vinWu (KeepThisTicket on GitHub). This project is a
+ are the work of KeepThisTicket. This project is a
  substantial rewrite focused on Pi Zero W stability and SDL2 KMSDRM
- rendering, but the visual concept and enclosure design are theirs.
+ rendering, but the visual concept and enclosure design are his.
 
  The 3D enclosure STL files are NOT redistributed in this repository.
  To print the case, please download them from the original project linked
