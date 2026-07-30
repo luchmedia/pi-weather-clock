@@ -25,7 +25,7 @@ This project is heavily inspired by [**KeepThisTicket/weatherClock**](https://gi
 **Original repository**: https://github.com/KeepThisTicket/weatherClock
 **Original enclosure CAD**: linked from the original repo
 
-If you want to print the case, get the STL files from KeepThisTicket's repository. We don't redistribute them here.
+If you want to print the case, get the STL files from KeepThisTicket's repository. I don't redistribute them here.
 
 ## Features compared to original
 
